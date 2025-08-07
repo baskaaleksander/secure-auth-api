@@ -16,3 +16,19 @@ export const registerUser = async (
     next(error);
   }
 };
+
+export const loginUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const data = req.body;
+
+    const loginResponse = await authService.loginUser(data);
+
+    res.status(200).json(loginResponse);
+  } catch (error) {
+    next(error);
+  }
+};
