@@ -1,13 +1,15 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cookieParser from 'cookie-parser';
-import prismaClient from './prisma-client';
+import routes from './routes/index';
 
 const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/', (req, res) => {
+app.use('/api', routes);
+
+app.use('/', (req: Request, res: Response) => {
   res.send('app is running!');
 });
 
