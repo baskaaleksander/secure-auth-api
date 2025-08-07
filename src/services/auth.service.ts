@@ -41,11 +41,9 @@ export const loginUser = async (data: UserAuthenticationSchema) => {
 
   const isValidPassword = bcrypt.compareSync(data.password, user.passwordHash);
 
-  console.log(isValidPassword);
-
   if (!isValidPassword) {
     const err = new Error('Incorrect password') as AppError;
-    err.statusCode = 409;
+    err.statusCode = 401;
     throw err;
   }
 
