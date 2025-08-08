@@ -215,3 +215,19 @@ export const logout = async (refreshToken: string) => {
 
   return true;
 };
+
+export const logoutAll = async (userId: string) => {
+  const allUserValidRefreshTokens = await prismaClient.refreshToken.findMany({
+    where: { userId, revoked: false },
+  });
+
+  if (allUserValidRefreshTokens.length === 0) {
+    return { message: 'Logout completed. None of the tokens were valid' };
+  }
+  const revokeTokens = await prismaClient.refreshToken.updateMany({
+    where: { userId, revoked: false },
+    data: { revoked: true, revokedAt: new Date() },
+  });
+
+  return { message: `Logout completed. Revoked ${revokeTokens.count} tokens` };
+};

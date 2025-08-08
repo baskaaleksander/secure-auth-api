@@ -128,4 +128,29 @@ export const logout = async (
   }
 };
 
-// TODO: Implement logout all devices functionality
+export const logoutAll = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const refreshToken = req.cookies.refresh;
+    const userId = req.user.userId;
+
+    if (!refreshToken) {
+      return res.status(400).json({ message: 'No refresh token provided' });
+    }
+
+    const logoutResponse = await authService.logoutAll(userId);
+
+    res.clearCookie('refresh', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    });
+
+    return res.status(200).json(logoutResponse);
+  } catch (error) {
+    next(error);
+  }
+};
