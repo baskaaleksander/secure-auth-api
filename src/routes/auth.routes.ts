@@ -2,6 +2,7 @@ import express from 'express';
 import * as authController from '../controllers/auth.controller';
 import { validate } from '../middlewares/validate.middleware';
 import { userAuthenticationSchema } from '../validators/auth.validator';
+import { authMiddleware } from '../middlewares/auth.middleware';
 const router = express.Router();
 
 router.post(
@@ -15,4 +16,7 @@ router.post(
   authController.loginUser,
 );
 
+router.post('/refresh', authController.refreshToken);
+
+router.post('/logout', authMiddleware, authController.logout);
 export default router;
