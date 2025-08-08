@@ -182,3 +182,36 @@ export const refreshToken = async (
 
   return { accessToken, refreshToken: generatedRefreshToken };
 };
+
+export const logout = async (refreshToken: string) => {
+  let payload;
+
+  try {
+    payload = jwt.verify(refreshToken, config.jwtRefreshSecret);
+  } catch {
+    return true;
+  }
+
+  const incomingHash = crypto
+    .createHash('sha256')
+    .update(refreshToken)
+    .digest('hex');
+
+  const tokenRecord = await prismaClient.refreshToken.findFirst({
+    where: { tokenHash: incomingHash },
+  });
+
+  if (!tokenRecord || tokenRecord.revoked) {
+    return true;
+  }
+
+  await prismaClient.refreshToken.update({
+    where: { id: tokenRecord.id },
+    data: {
+      revoked: true,
+      revokedAt: new Date(),
+    },
+  });
+
+  return true;
+};

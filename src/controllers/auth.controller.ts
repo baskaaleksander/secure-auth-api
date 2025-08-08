@@ -83,7 +83,12 @@ export const refreshToken = async (
       clientInformation,
     );
 
-    res.clearCookie('refresh');
+    res.clearCookie('refresh', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    });
+
     res.cookie('refresh', newTokens.refreshToken, {
       httpOnly: true,
       secure: true,
@@ -96,3 +101,31 @@ export const refreshToken = async (
     next(error);
   }
 };
+
+export const logout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const refreshToken = req.cookies.refresh;
+
+    if (!refreshToken) {
+      return res.status(400).json({ message: 'No refresh token provided' });
+    }
+
+    await authService.logout(refreshToken);
+
+    res.clearCookie('refresh', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    });
+
+    return res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// TODO: Implement logout all devices functionality
