@@ -31,6 +31,7 @@ model RefreshToken {
   userAgent    String?
   createdAt    DateTime @default(now())
   expiresAt    DateTime
+  revoked      Boolean  @default(false)
   revokedAt    DateTime?
   replacedById String?
   replacedBy   RefreshToken? @relation("TokenReplacement", fields: [replacedById], references: [id])

@@ -94,3 +94,91 @@ export const loginUser = async (
     user: userWithoutPassword,
   };
 };
+
+export const refreshToken = async (
+  refreshToken: string,
+  clientInformation: ClientInformation,
+) => {
+  const incomingHash = crypto
+    .createHash('sha256')
+    .update(refreshToken)
+    .digest('hex');
+
+  const refreshTokenInDB = await prismaClient.refreshToken.findFirst({
+    where: {
+      tokenHash: incomingHash,
+      ipAddress: clientInformation.ip,
+      userAgent: clientInformation.userAgent,
+      revoked: false,
+    },
+  });
+
+  if (!refreshTokenInDB) {
+    const err = new Error('Invalid refresh token') as AppError;
+    err.statusCode = 401;
+    throw err;
+  }
+
+  let payload;
+
+  try {
+    payload = jwt.verify(refreshToken, config.jwtRefreshSecret);
+  } catch (error) {
+    const err = new Error(error.message || 'Invalid refresh token') as AppError;
+    err.statusCode = 401;
+    throw err;
+  }
+
+  const userId = payload.sub as string;
+
+  const user = await prismaClient.user.findUnique({ where: { id: userId } });
+
+  if (!user) {
+    const err = new Error('User not found') as AppError;
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const jti = uuidv4();
+
+  const generatedRefreshToken = jwt.sign(
+    { sub: user.id, jti, type: 'refresh' },
+    config.jwtRefreshSecret,
+    { expiresIn: '7d' },
+  );
+
+  const accessToken = jwt.sign(
+    { sub: user.id, type: 'access' },
+    config.jwtSecret,
+    {
+      expiresIn: '15m',
+    },
+  );
+
+  const tokenHash = crypto
+    .createHash('sha256')
+    .update(generatedRefreshToken)
+    .digest('hex');
+
+  const newRefreshToken = await prismaClient.refreshToken.create({
+    data: {
+      id: jti,
+      userId: user.id,
+      ipAddress: clientInformation.ip,
+      userAgent: clientInformation.userAgent,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  await prismaClient.refreshToken.update({
+    where: { id: refreshTokenInDB.id },
+    data: {
+      revoked: true,
+      revokedAt: new Date(),
+      replacedById: newRefreshToken.id,
+    },
+  });
+
+  return { accessToken, refreshToken: generatedRefreshToken };
+};
