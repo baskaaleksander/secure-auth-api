@@ -125,7 +125,9 @@ export const refreshToken = async (
   try {
     payload = jwt.verify(refreshToken, config.jwtRefreshSecret);
   } catch (error) {
-    const err = new Error(error.message || 'Invalid refresh token') as AppError;
+    const message =
+      error instanceof Error ? error.message : 'Invalid refresh token';
+    const err = new Error(message) as AppError;
     err.statusCode = 401;
     throw err;
   }
