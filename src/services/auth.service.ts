@@ -2,6 +2,10 @@ import { UserAuthenticationSchema } from '../validators/auth.validator';
 import bcrypt from 'bcryptjs';
 import prismaClient from '../config/prisma-client';
 import { AppError } from '../utils/types';
+import { v4 as uuidv4 } from 'uuid';
+import jwt from 'jsonwebtoken';
+import config from '../config/env';
+import crypto from 'crypto';
 
 export const registerUser = async (data: UserAuthenticationSchema) => {
   const isUser = await prismaClient.user.findUnique({
@@ -28,7 +32,11 @@ export const registerUser = async (data: UserAuthenticationSchema) => {
   return userWithoutPassword;
 };
 
-export const loginUser = async (data: UserAuthenticationSchema) => {
+export const loginUser = async (
+  data: UserAuthenticationSchema,
+  userAgent: string,
+  ip: string,
+) => {
   const user = await prismaClient.user.findUnique({
     where: { email: data.email },
   });
@@ -47,7 +55,43 @@ export const loginUser = async (data: UserAuthenticationSchema) => {
     throw err;
   }
 
+  const jti = uuidv4();
+
+  const generatedRefreshToken = jwt.sign(
+    { sub: user.id, jti, type: 'refresh' },
+    config.jwtRefreshSecret,
+    { expiresIn: '7d' },
+  );
+
+  const generatedAccessToken = jwt.sign(
+    { sub: user.id, type: 'access' },
+    config.jwtSecret,
+    {
+      expiresIn: '15m',
+    },
+  );
+
+  const tokenHash = crypto
+    .createHash('sha256')
+    .update(generatedRefreshToken)
+    .digest('hex');
+
+  await prismaClient.refreshToken.create({
+    data: {
+      id: jti,
+      userId: user.id,
+      ipAddress: ip,
+      userAgent,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+
   const { passwordHash, ...userWithoutPassword } = user;
 
-  return userWithoutPassword;
+  return {
+    accessToken: generatedAccessToken,
+    refreshToken: generatedRefreshToken,
+    user: userWithoutPassword,
+  };
 };
