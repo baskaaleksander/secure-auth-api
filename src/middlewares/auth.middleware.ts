@@ -19,7 +19,7 @@ export const authMiddleware = (
       return res.status(403).json({ message: 'Invalid JWT Token' });
     }
 
-    req.user = user;
+    (req as Request & { user?: string | jwt.JwtPayload }).user = user;
     next();
   });
 };

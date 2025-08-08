@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import { ClientInformation } from '../utils/types';
+import jwt from 'jsonwebtoken';
 
 export const registerUser = async (
   req: Request,
@@ -129,18 +130,21 @@ export const logout = async (
 };
 
 export const logoutAll = async (
-  req: Request,
+  req: Request & { user?: string | jwt.JwtPayload },
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const refreshToken = req.cookies.refresh;
-    const userId = req.user.userId;
+    const userId = req.user?.sub;
 
     if (!refreshToken) {
       return res.status(400).json({ message: 'No refresh token provided' });
     }
 
+    if (!userId || typeof userId !== 'string') {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
     const logoutResponse = await authService.logoutAll(userId);
 
     res.clearCookie('refresh', {

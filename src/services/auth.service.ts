@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { UserAuthenticationSchema } from '../validators/auth.validator';
 import bcrypt from 'bcryptjs';
 import prismaClient from '../config/prisma-client';
@@ -27,7 +28,7 @@ export const registerUser = async (data: UserAuthenticationSchema) => {
     },
   });
 
-  const { passwordHash, ...userWithoutPassword } = createdUser;
+  const { passwordHash: _, ...userWithoutPassword } = createdUser;
 
   return userWithoutPassword;
 };
@@ -86,7 +87,7 @@ export const loginUser = async (
     },
   });
 
-  const { passwordHash, ...userWithoutPassword } = user;
+  const { passwordHash: _, ...userWithoutPassword } = user;
 
   return {
     accessToken: generatedAccessToken,
@@ -184,7 +185,7 @@ export const refreshToken = async (
 };
 
 export const logout = async (refreshToken: string) => {
-  let payload;
+  let payload: string | jwt.JwtPayload;
 
   try {
     payload = jwt.verify(refreshToken, config.jwtRefreshSecret);
