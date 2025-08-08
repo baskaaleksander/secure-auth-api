@@ -34,7 +34,12 @@ export const loginUser = async (
       throw err;
     }
 
-    const loginResponse = await authService.loginUser(data, userAgent, ip);
+    const clientInformation: ClientInformation = {
+      userAgent,
+      ip,
+    };
+
+    const loginResponse = await authService.loginUser(data, clientInformation);
 
     const { refreshToken, ...loginResponseWithoutRefresh } = loginResponse;
 

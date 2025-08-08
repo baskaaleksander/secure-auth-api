@@ -1,7 +1,7 @@
 import { UserAuthenticationSchema } from '../validators/auth.validator';
 import bcrypt from 'bcryptjs';
 import prismaClient from '../config/prisma-client';
-import { AppError } from '../utils/types';
+import { AppError, ClientInformation } from '../utils/types';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 import config from '../config/env';
@@ -34,8 +34,7 @@ export const registerUser = async (data: UserAuthenticationSchema) => {
 
 export const loginUser = async (
   data: UserAuthenticationSchema,
-  userAgent: string,
-  ip: string,
+  clientInformation: ClientInformation,
 ) => {
   const user = await prismaClient.user.findUnique({
     where: { email: data.email },
@@ -80,8 +79,8 @@ export const loginUser = async (
     data: {
       id: jti,
       userId: user.id,
-      ipAddress: ip,
-      userAgent,
+      ipAddress: clientInformation.ip,
+      userAgent: clientInformation.userAgent,
       tokenHash,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
