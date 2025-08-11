@@ -6,6 +6,7 @@ export const authLimiter = rateLimit({
   store: new RedisStore({
     sendCommand: (...args: string[]) =>
       redisClient.call(...args) as Promise<RedisReply>,
+    prefix: 'auth_limiter',
   }),
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -16,6 +17,7 @@ export const passwordResetLimiter = rateLimit({
   store: new RedisStore({
     sendCommand: (...args: string[]) =>
       redisClient.call(...args) as Promise<RedisReply>,
+    prefix: 'password_reset_limiter',
   }),
   windowMs: 60 * 60 * 1000,
   max: 3,
@@ -26,6 +28,7 @@ export const refreshTokenLimiter = rateLimit({
   store: new RedisStore({
     sendCommand: (...args: string[]) =>
       redisClient.call(...args) as Promise<RedisReply>,
+    prefix: 'refresh_token_limiter',
   }),
   windowMs: 60 * 60 * 1000,
   max: 20,
@@ -36,6 +39,7 @@ export const globalLimiter = rateLimit({
   store: new RedisStore({
     sendCommand: (...args: string[]) =>
       redisClient.call(...args) as Promise<RedisReply>,
+    prefix: 'global_limiter',
   }),
   windowMs: 60 * 60 * 1000,
   max: 500,
