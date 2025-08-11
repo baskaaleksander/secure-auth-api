@@ -4,6 +4,7 @@ import routes from './routes/index';
 import { errorMiddleware } from './middlewares/error.middleware';
 import helmet from 'helmet';
 import config from './config/env';
+import { globalLimiter } from './utils/limiters';
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use(
 
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+app.use(globalLimiter);
 
 app.use('/api', routes);
 
