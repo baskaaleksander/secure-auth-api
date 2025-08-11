@@ -19,4 +19,6 @@ router.post(
 router.post('/refresh', authController.refreshToken);
 
 router.post('/logout', authMiddleware, authController.logout);
+
+router.post('/logout-all', authMiddleware, authController.logoutAll);
 export default router;
