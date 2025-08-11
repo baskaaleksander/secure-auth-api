@@ -7,6 +7,7 @@ interface Config {
   jwtRefreshSecret: string;
   port: number;
   nodeEnv: string;
+  redisUrl: string;
 }
 
 if (!process.env.JWT_SECRET) {
@@ -16,11 +17,16 @@ if (!process.env.JWT_REFRESH_SECRET) {
   throw new Error('JWT_REFRESH_SECRET is required! Define it in .env file');
 }
 
+if (!process.env.REDIS_URL) {
+  throw new Error('REDIS_URL is required! Define it in .env file');
+}
+
 const config: Config = {
   jwtSecret: process.env.JWT_SECRET,
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
   port: Number(process.env.PORT) || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
+  redisUrl: process.env.REDIS_URL,
 };
 
 export default config;
