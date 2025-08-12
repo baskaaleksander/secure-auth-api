@@ -10,8 +10,22 @@ export const registerUser = async (
 ) => {
   try {
     const data = req.body;
+    const userAgent = req.headers['user-agent'];
+    const ip = req.ip;
 
-    const registerResponse = await authService.registerUser(data);
+    if (!userAgent || !ip) {
+      return res.status(400).json({ message: 'Invalid request' });
+    }
+
+    const clientInformation: ClientInformation = {
+      userAgent,
+      ip,
+    };
+
+    const registerResponse = await authService.registerUser(
+      data,
+      clientInformation,
+    );
 
     res.status(201).json(registerResponse);
   } catch (error) {
@@ -110,12 +124,23 @@ export const logout = async (
 ) => {
   try {
     const refreshToken = req.cookies.refresh;
+    const userAgent = req.headers['user-agent'];
+    const ip = req.ip;
+
+    if (!userAgent || !ip) {
+      return res.status(400).json({ message: 'Invalid request' });
+    }
+
+    const clientInformation: ClientInformation = {
+      userAgent,
+      ip,
+    };
 
     if (!refreshToken) {
       return res.status(400).json({ message: 'No refresh token provided' });
     }
 
-    await authService.logout(refreshToken);
+    await authService.logout(refreshToken, clientInformation);
 
     res.clearCookie('refresh', {
       httpOnly: true,
@@ -137,6 +162,17 @@ export const logoutAll = async (
   try {
     const refreshToken = req.cookies.refresh;
     const userId = req.user?.sub;
+    const userAgent = req.headers['user-agent'];
+    const ip = req.ip;
+
+    if (!userAgent || !ip) {
+      return res.status(400).json({ message: 'Invalid request' });
+    }
+
+    const clientInformation: ClientInformation = {
+      userAgent,
+      ip,
+    };
 
     if (!refreshToken) {
       return res.status(400).json({ message: 'No refresh token provided' });
@@ -145,7 +181,10 @@ export const logoutAll = async (
     if (!userId || typeof userId !== 'string') {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
-    const logoutResponse = await authService.logoutAll(userId);
+    const logoutResponse = await authService.logoutAll(
+      userId,
+      clientInformation,
+    );
 
     res.clearCookie('refresh', {
       httpOnly: true,
