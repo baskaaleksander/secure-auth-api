@@ -2,11 +2,12 @@
 import { UserAuthenticationSchema } from '../validators/auth.validator';
 import bcrypt from 'bcryptjs';
 import prismaClient from '../config/prisma-client';
-import { AppError, ClientInformation } from '../utils/types';
+import { AppError, ClientInformation, EventTypes } from '../utils/types';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 import config from '../config/env';
 import crypto from 'crypto';
+import logger from '../utils/logger';
 
 export const registerUser = async (data: UserAuthenticationSchema) => {
   const isUser = await prismaClient.user.findUnique({
@@ -42,7 +43,14 @@ export const loginUser = async (
   });
 
   if (!user) {
-    const err = new Error('User with that email does not exist') as AppError;
+    const errorMessage = 'User with that email does not exist';
+    await logger({
+      eventType: EventTypes.AUTH_FAILED,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 404;
     throw err;
   }
@@ -50,7 +58,16 @@ export const loginUser = async (
   const isValidPassword = bcrypt.compareSync(data.password, user.passwordHash);
 
   if (!isValidPassword) {
-    const err = new Error('Incorrect password') as AppError;
+    const errorMessage = 'Incorrect password';
+    await logger({
+      userId: user.id,
+      eventType: EventTypes.AUTH_FAILED,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 401;
     throw err;
   }
@@ -76,18 +93,41 @@ export const loginUser = async (
     .update(generatedRefreshToken)
     .digest('hex');
 
-  await prismaClient.refreshToken.create({
-    data: {
-      id: jti,
+  try {
+    await prismaClient.refreshToken.create({
+      data: {
+        id: jti,
+        userId: user.id,
+        ipAddress: clientInformation.ip,
+        userAgent: clientInformation.userAgent,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+  } catch (error) {
+    const errorMessage = 'Failed to create refresh token in DB';
+    await logger({
       userId: user.id,
-      ipAddress: clientInformation.ip,
+      eventType: EventTypes.DB_ERROR,
       userAgent: clientInformation.userAgent,
-      tokenHash,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
+      ipAddress: clientInformation.ip,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+
+    const err = new Error(errorMessage) as AppError;
+    err.statusCode = 500;
+    throw err;
+  }
 
   const { passwordHash: _, ...userWithoutPassword } = user;
+
+  await logger({
+    userId: user.id,
+    eventType: EventTypes.AUTH_SUCCESS,
+    userAgent: clientInformation.userAgent,
+    ipAddress: clientInformation.ip,
+    metadata: JSON.stringify({ message: 'Successfully logged in user' }),
+  });
 
   return {
     accessToken: generatedAccessToken,
@@ -115,7 +155,14 @@ export const refreshToken = async (
   });
 
   if (!refreshTokenInDB) {
-    const err = new Error('Invalid refresh token') as AppError;
+    const errorMessage = 'Invalid refresh token';
+    await logger({
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.REFRESH_TOKEN_FAIL,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 401;
     throw err;
   }
@@ -125,9 +172,15 @@ export const refreshToken = async (
   try {
     payload = jwt.verify(refreshToken, config.jwtRefreshSecret);
   } catch (error) {
-    const message =
+    const errorMessage =
       error instanceof Error ? error.message : 'Invalid refresh token';
-    const err = new Error(message) as AppError;
+    await logger({
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.REFRESH_TOKEN_FAIL,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 401;
     throw err;
   }
@@ -137,7 +190,15 @@ export const refreshToken = async (
   const user = await prismaClient.user.findUnique({ where: { id: userId } });
 
   if (!user) {
-    const err = new Error('User not found') as AppError;
+    const errorMessage = 'User not found';
+    await logger({
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.REFRESH_TOKEN_FAIL,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 404;
     throw err;
   }
@@ -163,25 +224,55 @@ export const refreshToken = async (
     .update(generatedRefreshToken)
     .digest('hex');
 
-  const newRefreshToken = await prismaClient.refreshToken.create({
-    data: {
-      id: jti,
-      userId: user.id,
-      ipAddress: clientInformation.ip,
-      userAgent: clientInformation.userAgent,
-      tokenHash,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
+  let newRefreshToken;
 
-  await prismaClient.refreshToken.update({
-    where: { id: refreshTokenInDB.id },
-    data: {
-      revoked: true,
-      revokedAt: new Date(),
-      replacedById: newRefreshToken.id,
-    },
-  });
+  try {
+    newRefreshToken = await prismaClient.refreshToken.create({
+      data: {
+        id: jti,
+        userId: user.id,
+        ipAddress: clientInformation.ip,
+        userAgent: clientInformation.userAgent,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+  } catch (error) {
+    const errorMessage = 'Failed to insert refresh token to DB';
+    await logger({
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.DB_ERROR,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+
+    const err = new Error(errorMessage) as AppError;
+    err.statusCode = 500;
+    throw err;
+  }
+
+  try {
+    await prismaClient.refreshToken.update({
+      where: { id: refreshTokenInDB.id },
+      data: {
+        revoked: true,
+        revokedAt: new Date(),
+        replacedById: newRefreshToken.id,
+      },
+    });
+  } catch (error) {
+    const errorMessage = 'Failed to update refresh token in DB';
+    await logger({
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.DB_ERROR,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+
+    const err = new Error(errorMessage) as AppError;
+    err.statusCode = 500;
+    throw err;
+  }
 
   return { accessToken, refreshToken: generatedRefreshToken };
 };
