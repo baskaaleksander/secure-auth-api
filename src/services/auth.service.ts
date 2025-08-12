@@ -18,21 +18,57 @@ export const registerUser = async (
   });
 
   if (isUser) {
-    const err = new Error('User with that email already exists') as AppError;
+    const errorMessage = 'User with that email already exists';
+    await logger({
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.AUTH_FAILED,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 409;
     throw err;
   }
 
   const hashedPassword = bcrypt.hashSync(data.password, 12);
 
-  const createdUser = await prismaClient.user.create({
-    data: {
-      email: data.email,
-      passwordHash: hashedPassword,
-    },
-  });
+  let createdUser;
+  try {
+    createdUser = await prismaClient.user.create({
+      data: {
+        email: data.email,
+        passwordHash: hashedPassword,
+      },
+    });
+  } catch (error) {
+    const errorMessage = 'Failed to create user';
+    await logger({
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.DB_ERROR,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+    const err = new Error(errorMessage) as AppError;
+    err.statusCode = 500;
+    throw err;
+  }
+
+  if (!createdUser) {
+    const errorMessage = 'User creation failed';
+    const err = new Error(errorMessage) as AppError;
+    err.statusCode = 500;
+    throw err;
+  }
 
   const { passwordHash: _, ...userWithoutPassword } = createdUser;
+
+  await logger({
+    userId: createdUser.id,
+    userAgent: clientInformation.userAgent,
+    ipAddress: clientInformation.ip,
+    eventType: EventTypes.AUTH_SUCCESS,
+    metadata: JSON.stringify({ message: 'User created successfully' }),
+  });
 
   return userWithoutPassword;
 };
@@ -106,6 +142,15 @@ export const loginUser = async (
         tokenHash,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
+    });
+    await logger({
+      userId: user.id,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.REFRESH_TOKEN_SUCCESS,
+      metadata: JSON.stringify({
+        message: 'Refresh token succesfully inserted to DB',
+      }),
     });
   } catch (error) {
     const errorMessage = 'Failed to create refresh token in DB';
@@ -240,6 +285,15 @@ export const refreshToken = async (
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
+    await logger({
+      userId: user.id,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.REFRESH_TOKEN_SUCCESS,
+      metadata: JSON.stringify({
+        message: 'Refresh token succesfully inserted to DB',
+      }),
+    });
   } catch (error) {
     const errorMessage = 'Failed to insert refresh token to DB';
     await logger({
@@ -262,6 +316,15 @@ export const refreshToken = async (
         revokedAt: new Date(),
         replacedById: newRefreshToken.id,
       },
+    });
+    await logger({
+      userId: user.id,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.REFRESH_TOKEN_SUCCESS,
+      metadata: JSON.stringify({
+        message: 'Refresh token succesfully updated in DB',
+      }),
     });
   } catch (error) {
     const errorMessage = 'Failed to update refresh token in DB';
@@ -331,12 +394,21 @@ export const logout = async (
   }
 
   try {
-    await prismaClient.refreshToken.update({
+    const refreshToken = await prismaClient.refreshToken.update({
       where: { id: tokenRecord.id },
       data: {
         revoked: true,
         revokedAt: new Date(),
       },
+    });
+    await logger({
+      userId: refreshToken.userId,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.REFRESH_TOKEN_SUCCESS,
+      metadata: JSON.stringify({
+        message: 'Successfully revoked refresh token',
+      }),
     });
   } catch (error) {
     const errorMessage = 'Failed to update refresh token in DB';
@@ -364,18 +436,62 @@ export const logout = async (
   return true;
 };
 
-export const logoutAll = async (userId: string) => {
+export const logoutAll = async (
+  userId: string,
+  clientInformation: ClientInformation,
+) => {
   const allUserValidRefreshTokens = await prismaClient.refreshToken.findMany({
     where: { userId, revoked: false },
   });
 
   if (allUserValidRefreshTokens.length === 0) {
-    return { message: 'Logout completed. None of the tokens were valid' };
+    const message = 'Logout completed. None of the tokens were valid';
+    await logger({
+      userId,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.LOGOUT_ALL,
+      metadata: JSON.stringify({ message }),
+    });
+    return { message };
   }
-  const revokeTokens = await prismaClient.refreshToken.updateMany({
-    where: { userId, revoked: false },
-    data: { revoked: true, revokedAt: new Date() },
-  });
 
-  return { message: `Logout completed. Revoked ${revokeTokens.count} tokens` };
+  let revokeTokensCount;
+
+  try {
+    const revokeTokens = await prismaClient.refreshToken.updateMany({
+      where: { userId, revoked: false },
+      data: { revoked: true, revokedAt: new Date() },
+    });
+
+    revokeTokensCount = revokeTokens.count;
+
+    await logger({
+      userId,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.REFRESH_TOKEN_SUCCESS,
+      metadata: JSON.stringify({
+        message: 'Refresh tokens successfuly updated',
+      }),
+    });
+  } catch (error) {
+    const errorMessage = 'Failed to update refresh tokens in DB';
+    await logger({
+      userId,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.REFRESH_TOKEN_FAIL,
+      metadata: JSON.stringify({
+        message: errorMessage,
+      }),
+    });
+
+    const err = new Error(errorMessage) as AppError;
+    err.statusCode = 500;
+
+    throw err;
+  }
+
+  return { message: `Logout completed. Revoked ${revokeTokensCount} tokens` };
 };
