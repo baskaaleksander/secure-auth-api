@@ -9,7 +9,10 @@ import config from '../config/env';
 import crypto from 'crypto';
 import logger from '../utils/logger';
 
-export const registerUser = async (data: UserAuthenticationSchema) => {
+export const registerUser = async (
+  data: UserAuthenticationSchema,
+  clientInformation: ClientInformation,
+) => {
   const isUser = await prismaClient.user.findUnique({
     where: { email: data.email },
   });
@@ -274,16 +277,36 @@ export const refreshToken = async (
     throw err;
   }
 
+  await logger({
+    userId,
+    userAgent: clientInformation.userAgent,
+    ipAddress: clientInformation.ip,
+    eventType: EventTypes.REFRESH_TOKEN_SUCCESS,
+    metadata: JSON.stringify({ message: 'Successfully refreshed token' }),
+  });
+
   return { accessToken, refreshToken: generatedRefreshToken };
 };
 
-export const logout = async (refreshToken: string) => {
+export const logout = async (
+  refreshToken: string,
+  clientInformation: ClientInformation,
+) => {
   let payload: string | jwt.JwtPayload;
 
   try {
     payload = jwt.verify(refreshToken, config.jwtRefreshSecret);
-  } catch {
-    return true;
+  } catch (error) {
+    const errorMessage = 'Failed to verify your JWT token';
+    await logger({
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.LOGOUT,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+    const err = new Error(errorMessage) as AppError;
+    err.statusCode = 401;
+    throw err;
   }
 
   const incomingHash = crypto
@@ -296,15 +319,46 @@ export const logout = async (refreshToken: string) => {
   });
 
   if (!tokenRecord || tokenRecord.revoked) {
+    await logger({
+      userId: payload.sub as string,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.LOGOUT,
+      metadata: JSON.stringify({ message: 'Token record not found' }),
+    });
+
     return true;
   }
 
-  await prismaClient.refreshToken.update({
-    where: { id: tokenRecord.id },
-    data: {
-      revoked: true,
-      revokedAt: new Date(),
-    },
+  try {
+    await prismaClient.refreshToken.update({
+      where: { id: tokenRecord.id },
+      data: {
+        revoked: true,
+        revokedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    const errorMessage = 'Failed to update refresh token in DB';
+    await logger({
+      userId: payload.sub as string,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.DB_ERROR,
+      metadata: JSON.stringify({ message: errorMessage }),
+    });
+    const err = new Error(errorMessage) as AppError;
+    err.statusCode = 500;
+
+    throw err;
+  }
+
+  await logger({
+    userId: payload.sub as string,
+    userAgent: clientInformation.userAgent,
+    ipAddress: clientInformation.ip,
+    eventType: EventTypes.LOGOUT,
+    metadata: JSON.stringify({ message: 'Successfully logged out user' }),
   });
 
   return true;
