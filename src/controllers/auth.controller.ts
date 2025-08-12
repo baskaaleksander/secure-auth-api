@@ -1,5 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
-import * as authService from '../services/auth.service';
+import * as loginService from '../services/login.service';
+import * as registerService from '../services/register.service';
+import * as tokenService from '../services/token.service';
+import * as logoutService from '../services/logout.service';
 import { ClientInformation } from '../utils/types';
 import jwt from 'jsonwebtoken';
 
@@ -22,7 +25,7 @@ export const registerUser = async (
       ip,
     };
 
-    const registerResponse = await authService.registerUser(
+    const registerResponse = await registerService.registerUser(
       data,
       clientInformation,
     );
@@ -52,7 +55,7 @@ export const loginUser = async (
       ip,
     };
 
-    const loginResponse = await authService.loginUser(data, clientInformation);
+    const loginResponse = await loginService.loginUser(data, clientInformation);
 
     const { refreshToken, ...loginResponseWithoutRefresh } = loginResponse;
 
@@ -93,7 +96,7 @@ export const refreshToken = async (
       ip,
     };
 
-    const newTokens = await authService.refreshToken(
+    const newTokens = await tokenService.refreshToken(
       refreshToken,
       clientInformation,
     );
@@ -140,7 +143,7 @@ export const logout = async (
       return res.status(400).json({ message: 'No refresh token provided' });
     }
 
-    await authService.logout(refreshToken, clientInformation);
+    await logoutService.logout(refreshToken, clientInformation);
 
     res.clearCookie('refresh', {
       httpOnly: true,
@@ -181,7 +184,7 @@ export const logoutAll = async (
     if (!userId || typeof userId !== 'string') {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
-    const logoutResponse = await authService.logoutAll(
+    const logoutResponse = await logoutService.logoutAll(
       userId,
       clientInformation,
     );
