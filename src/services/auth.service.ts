@@ -53,13 +53,6 @@ export const registerUser = async (
     throw err;
   }
 
-  if (!createdUser) {
-    const errorMessage = 'User creation failed';
-    const err = new Error(errorMessage) as AppError;
-    err.statusCode = 500;
-    throw err;
-  }
-
   const { passwordHash: _, ...userWithoutPassword } = createdUser;
 
   await logger({
@@ -149,7 +142,7 @@ export const loginUser = async (
       ipAddress: clientInformation.ip,
       eventType: EventTypes.REFRESH_TOKEN_SUCCESS,
       metadata: JSON.stringify({
-        message: 'Refresh token succesfully inserted to DB',
+        message: 'Refresh token successfully inserted to DB',
       }),
     });
   } catch (error) {
@@ -291,7 +284,7 @@ export const refreshToken = async (
       ipAddress: clientInformation.ip,
       eventType: EventTypes.REFRESH_TOKEN_SUCCESS,
       metadata: JSON.stringify({
-        message: 'Refresh token succesfully inserted to DB',
+        message: 'Refresh token successfully inserted to DB',
       }),
     });
   } catch (error) {
@@ -323,7 +316,7 @@ export const refreshToken = async (
       ipAddress: clientInformation.ip,
       eventType: EventTypes.REFRESH_TOKEN_SUCCESS,
       metadata: JSON.stringify({
-        message: 'Refresh token succesfully updated in DB',
+        message: 'Refresh token successfully updated in DB',
       }),
     });
   } catch (error) {
