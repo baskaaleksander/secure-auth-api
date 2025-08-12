@@ -1,12 +1,12 @@
-import { UserAuthenticationSchema } from '../validators/auth.validator';
+import { UserAuthenticationSchema } from '../../validators/auth.validator';
 import bcrypt from 'bcryptjs';
-import prismaClient from '../config/prisma-client';
-import { AppError, ClientInformation, EventTypes } from '../utils/types';
+import prismaClient from '../../config/prisma-client';
+import { AppError, ClientInformation, EventTypes } from '../../utils/types';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
-import config from '../config/env';
+import config from '../../config/env';
 import crypto from 'crypto';
-import logger from '../utils/logger';
+import logger from '../../utils/logger';
 
 export const loginUser = async (
   data: UserAuthenticationSchema,

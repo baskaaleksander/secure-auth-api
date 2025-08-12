@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
-import * as loginService from '../services/login.service';
-import * as registerService from '../services/register.service';
-import * as tokenService from '../services/token.service';
-import * as logoutService from '../services/logout.service';
+import * as loginService from '../services/auth/login.service';
+import * as registerService from '../services/auth/register.service';
+import * as tokenService from '../services/auth/token.service';
+import * as logoutService from '../services/auth/logout.service';
 import { ClientInformation } from '../utils/types';
 import jwt from 'jsonwebtoken';
 
