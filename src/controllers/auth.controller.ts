@@ -3,6 +3,7 @@ import * as loginService from '../services/auth/login.service';
 import * as registerService from '../services/auth/register.service';
 import * as tokenService from '../services/auth/token.service';
 import * as logoutService from '../services/auth/logout.service';
+import * as passwordResetService from '../services/auth/password-reset.service';
 import { ClientInformation } from '../utils/types';
 import jwt from 'jsonwebtoken';
 
@@ -196,6 +197,23 @@ export const logoutAll = async (
     });
 
     return res.status(200).json(logoutResponse);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const requestPasswordReset = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const data = req.body;
+
+    const requestPasswordReset =
+      await passwordResetService.requestPasswordReset(data);
+
+    return res.status(200).json(requestPasswordReset);
   } catch (error) {
     next(error);
   }

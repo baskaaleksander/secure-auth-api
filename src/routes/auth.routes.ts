@@ -4,6 +4,7 @@ import { validate } from '../middlewares/validate.middleware';
 import { userAuthenticationSchema } from '../validators/auth.validator';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { authLimiter, refreshTokenLimiter } from '../utils/limiters';
+import { requestPasswordResetSchema } from '../validators/password-reset.validator';
 const router = express.Router();
 
 router.post(
@@ -28,5 +29,11 @@ router.post(
   authLimiter,
   authMiddleware,
   authController.logoutAll,
+);
+
+router.post(
+  '/request-password-reset',
+  validate(requestPasswordResetSchema),
+  authController.requestPasswordReset,
 );
 export default router;
