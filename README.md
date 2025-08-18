@@ -39,7 +39,7 @@ A robust authentication API built with Node.js, TypeScript, and Prisma, featurin
 
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js with middleware architecture
-- **Database**: SQLite with Prisma ORM
+- **Database**: PostgreSQL with Prisma ORM
 - **Caching**: Redis for session management
 - **Email**: Nodemailer with Gmail integration
 - **Security**: Helmet, bcrypt, JWT
