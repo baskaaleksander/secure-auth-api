@@ -8,7 +8,7 @@ const renderTemplate = (
   templateName: 'welcome' | 'password-reset',
   data?: MailData,
 ) => {
-  const templatePath = './templates/' + templateName + '.pug';
+  const templatePath = './src/utils/templates/' + templateName + '.pug';
 
   if (data) {
     return pug.renderFile(templatePath, data);
