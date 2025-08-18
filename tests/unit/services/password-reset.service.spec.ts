@@ -883,7 +883,7 @@ describe('resetPassword', () => {
       await expect(
         resetPassword(resetData, resetQuery, mockClientInfo),
       ).rejects.toMatchObject({
-        message: 'Failed to updated password',
+        message: 'Failed to update password',
         statusCode: 500,
       });
 
@@ -892,7 +892,7 @@ describe('resetPassword', () => {
           userId: 'user-123',
           eventType: EventTypes.PASSWORD_RESET_FAIL,
           metadata: JSON.stringify({
-            message: 'Failed to updated password',
+            message: 'Failed to update password',
           }),
         }),
       );

@@ -152,7 +152,7 @@ export const resetPassword = async (
       data: { passwordHash: hashedPassword },
     });
   } catch {
-    const errorMessage = 'Failed to updated password';
+    const errorMessage = 'Failed to update password';
     const err = new Error(errorMessage) as AppError;
     err.statusCode = 500;
 
