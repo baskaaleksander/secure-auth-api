@@ -218,3 +218,29 @@ export const requestPasswordReset = async (
     next(error);
   }
 };
+
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const query = req.query as { token: string; userId: string };
+    const data = req.body;
+
+    if (!query.token || !query.userId) {
+      return res
+        .status(401)
+        .json({ message: 'Enter valid token and userId values into URL' });
+    }
+
+    const resetPasswordResponse = await passwordResetService.resetPassword(
+      data,
+      query,
+    );
+
+    return res.status(200).json(resetPasswordResponse);
+  } catch (error) {
+    next(error);
+  }
+};
