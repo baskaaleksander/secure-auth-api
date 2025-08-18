@@ -15,6 +15,9 @@ export enum EventTypes {
   LOGOUT_ALL = 'LOGOUT_ALL',
   LOGOUT = 'LOGOUT',
   DB_ERROR = 'DB_ERROR',
+  PASSWORD_RESET_REQUEST = 'PASSWORD_RESET_REQUEST',
+  PASSWORD_RESET_FAIL = 'PASSWORD_RESET_FAIL',
+  PASSWORD_RESET_SUCCESS = 'PASSWORD_RESET_SUCCESS',
 }
 
 export interface LogDataInterface {
@@ -27,4 +30,9 @@ export interface LogDataInterface {
 
 export interface MailData {
   link: string;
+}
+
+export interface ResetPasswordQuery {
+  token: string;
+  userId: string;
 }
