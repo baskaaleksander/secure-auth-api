@@ -1,5 +1,6 @@
 import prismaClient from '../../config/prisma-client';
 import logger from '../../utils/logger';
+import { sendEmail } from '../../utils/send-email';
 import { AppError, ClientInformation, EventTypes } from '../../utils/types';
 import { UserAuthenticationSchema } from '../../validators/auth.validator';
 import bcrypt from 'bcryptjs';
@@ -50,6 +51,8 @@ export const registerUser = async (
 
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const { passwordHash: _, ...userWithoutPassword } = createdUser;
+
+  sendEmail(createdUser.email, 'Welcome to Secure Auth', 'welcome');
 
   await logger({
     userId: createdUser.id,

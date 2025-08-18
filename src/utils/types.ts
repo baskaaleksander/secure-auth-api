@@ -24,3 +24,7 @@ export interface LogDataInterface {
   userAgent?: string;
   metadata?: string;
 }
+
+export interface MailData {
+  link: string;
+}
