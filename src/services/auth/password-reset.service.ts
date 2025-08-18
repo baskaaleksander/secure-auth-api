@@ -1,16 +1,23 @@
 import config from '../../config/env';
 import prismaClient from '../../config/prisma-client';
 import { sendEmail } from '../../utils/send-email';
-import { AppError } from '../../utils/types';
+import {
+  AppError,
+  ClientInformation,
+  EventTypes,
+  ResetPasswordQuery,
+} from '../../utils/types';
 import {
   RequestPasswordResetSchema,
   ResetPasswordSchema,
 } from '../../validators/password-reset.validator';
 import * as crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import logger from '../../utils/logger';
 
 export const requestPasswordReset = async (
   data: RequestPasswordResetSchema,
+  clientInformation: ClientInformation,
 ) => {
   const user = await prismaClient.user.findUnique({
     where: { email: data.email },
@@ -29,15 +36,30 @@ export const requestPasswordReset = async (
           expiresAt: new Date(Date.now() + 60 * 60 * 1000),
         },
       });
+
+      await logger({
+        userId: user.id,
+        userAgent: clientInformation.userAgent,
+        ipAddress: clientInformation.ip,
+        eventType: EventTypes.PASSWORD_RESET_REQUEST,
+        metadata: JSON.stringify({ message: 'Password reset requested' }),
+      });
     } catch {
-      const err = new Error('Failed to create token') as AppError;
+      const errorMessage = 'Failed to create token';
+      const err = new Error(errorMessage) as AppError;
       err.statusCode = 500;
 
+      await logger({
+        userId: user.id,
+        userAgent: clientInformation.userAgent,
+        ipAddress: clientInformation.ip,
+        eventType: EventTypes.PASSWORD_RESET_FAIL,
+        metadata: JSON.stringify({
+          message: errorMessage,
+        }),
+      });
       throw err;
     }
-    console.log(
-      `${config.frontendUrl}/reset-password?token=${token}&id=${user.id}`,
-    );
 
     sendEmail(
       user.email,
@@ -52,7 +74,8 @@ export const requestPasswordReset = async (
 
 export const resetPassword = async (
   data: ResetPasswordSchema,
-  query: { token: string; userId: string },
+  query: ResetPasswordQuery,
+  clientInformation: ClientInformation,
 ) => {
   const incomingTokenHash = crypto
     .createHash('sha256')
@@ -64,20 +87,37 @@ export const resetPassword = async (
   });
 
   if (!token) {
-    const err = new Error('Reset token is not valid') as AppError;
+    const errorMessage = 'Reset token is not valid';
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 401;
-    throw err;
-  }
 
-  if (token.userId !== query.userId) {
-    const err = new Error('Reset token is not valid for that user') as AppError;
-    err.statusCode = 401;
+    await logger({
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.PASSWORD_RESET_FAIL,
+      metadata: JSON.stringify({
+        message: errorMessage,
+      }),
+    });
+
     throw err;
   }
 
   if (token.expiresAt < new Date()) {
-    const err = new Error('Reset token expired') as AppError;
+    const errorMessage = 'Reset token expired';
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 401;
+
+    await logger({
+      userId: query.userId,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.PASSWORD_RESET_FAIL,
+      metadata: JSON.stringify({
+        message: errorMessage,
+      }),
+    });
+
     throw err;
   }
 
@@ -87,8 +127,20 @@ export const resetPassword = async (
   });
 
   if (updated.count === 0) {
-    const err = new Error('Reset token already used') as AppError;
+    const errorMessage = 'Reset token already used';
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 401;
+
+    await logger({
+      userId: query.userId,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.PASSWORD_RESET_FAIL,
+      metadata: JSON.stringify({
+        message: errorMessage,
+      }),
+    });
+
     throw err;
   }
 
@@ -100,11 +152,32 @@ export const resetPassword = async (
       data: { passwordHash: hashedPassword },
     });
   } catch {
-    const err = new Error('Failed to updated password') as AppError;
+    const errorMessage = 'Failed to updated password';
+    const err = new Error(errorMessage) as AppError;
     err.statusCode = 500;
+
+    await logger({
+      userId: query.userId,
+      userAgent: clientInformation.userAgent,
+      ipAddress: clientInformation.ip,
+      eventType: EventTypes.PASSWORD_RESET_FAIL,
+      metadata: JSON.stringify({
+        message: errorMessage,
+      }),
+    });
 
     throw err;
   }
 
-  return { message: 'Successfully updated password' };
+  const message = 'Successfully updated password';
+  await logger({
+    userId: query.userId,
+    userAgent: clientInformation.userAgent,
+    ipAddress: clientInformation.ip,
+    eventType: EventTypes.PASSWORD_RESET_SUCCESS,
+    metadata: JSON.stringify({
+      message,
+    }),
+  });
+  return { message };
 };

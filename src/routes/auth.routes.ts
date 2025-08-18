@@ -3,8 +3,15 @@ import * as authController from '../controllers/auth.controller';
 import { validate } from '../middlewares/validate.middleware';
 import { userAuthenticationSchema } from '../validators/auth.validator';
 import { authMiddleware } from '../middlewares/auth.middleware';
-import { authLimiter, refreshTokenLimiter } from '../utils/limiters';
-import { requestPasswordResetSchema } from '../validators/password-reset.validator';
+import {
+  authLimiter,
+  passwordResetLimiter,
+  refreshTokenLimiter,
+} from '../utils/limiters';
+import {
+  requestPasswordResetSchema,
+  resetPasswordSchema,
+} from '../validators/password-reset.validator';
 const router = express.Router();
 
 router.post(
@@ -33,7 +40,14 @@ router.post(
 
 router.post(
   '/request-password-reset',
+  passwordResetLimiter,
   validate(requestPasswordResetSchema),
   authController.requestPasswordReset,
+);
+
+router.post(
+  '/reset-password',
+  validate(resetPasswordSchema),
+  authController.resetPassword,
 );
 export default router;

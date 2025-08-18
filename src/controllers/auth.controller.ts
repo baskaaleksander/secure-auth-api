@@ -209,6 +209,17 @@ export const requestPasswordReset = async (
 ) => {
   try {
     const data = req.body;
+    const userAgent = req.headers['user-agent'];
+    const ip = req.ip;
+
+    if (!userAgent || !ip) {
+      return res.status(400).json({ message: 'Invalid request' });
+    }
+
+    const clientInformation: ClientInformation = {
+      userAgent,
+      ip,
+    };
 
     const requestPasswordReset =
       await passwordResetService.requestPasswordReset(data);
@@ -227,6 +238,17 @@ export const resetPassword = async (
   try {
     const query = req.query as { token: string; userId: string };
     const data = req.body;
+    const userAgent = req.headers['user-agent'];
+    const ip = req.ip;
+
+    if (!userAgent || !ip) {
+      return res.status(400).json({ message: 'Invalid request' });
+    }
+
+    const clientInformation: ClientInformation = {
+      userAgent,
+      ip,
+    };
 
     if (!query.token || !query.userId) {
       return res
