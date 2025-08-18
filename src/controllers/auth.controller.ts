@@ -222,7 +222,7 @@ export const requestPasswordReset = async (
     };
 
     const requestPasswordReset =
-      await passwordResetService.requestPasswordReset(data);
+      await passwordResetService.requestPasswordReset(data, clientInformation);
 
     return res.status(200).json(requestPasswordReset);
   } catch (error) {
@@ -259,6 +259,7 @@ export const resetPassword = async (
     const resetPasswordResponse = await passwordResetService.resetPassword(
       data,
       query,
+      clientInformation,
     );
 
     return res.status(200).json(resetPasswordResponse);
