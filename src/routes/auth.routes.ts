@@ -1,5 +1,9 @@
 import express from 'express';
-import * as authController from '../controllers/auth.controller';
+import * as loginController from '../controllers/auth/login.controller';
+import * as logoutController from '../controllers/auth/logout.controller';
+import * as passwordResetController from '../controllers/auth/password-reset.controller';
+import * as registerController from '../controllers/auth/register.controller';
+import * as tokenController from '../controllers/auth/token.controller';
 import { validate } from '../middlewares/validate.middleware';
 import { userAuthenticationSchema } from '../validators/auth.validator';
 import { authMiddleware } from '../middlewares/auth.middleware';
@@ -18,36 +22,36 @@ router.post(
   '/register',
   authLimiter,
   validate(userAuthenticationSchema),
-  authController.registerUser,
+  registerController.registerUser,
 );
 router.post(
   '/login',
   authLimiter,
   validate(userAuthenticationSchema),
-  authController.loginUser,
+  loginController.loginUser,
 );
 
-router.post('/refresh', refreshTokenLimiter, authController.refreshToken);
+router.post('/refresh', refreshTokenLimiter, tokenController.refreshToken);
 
-router.post('/logout', authLimiter, authMiddleware, authController.logout);
+router.post('/logout', authLimiter, authMiddleware, logoutController.logout);
 
 router.post(
   '/logout-all',
   authLimiter,
   authMiddleware,
-  authController.logoutAll,
+  logoutController.logoutAll,
 );
 
 router.post(
   '/request-password-reset',
   passwordResetLimiter,
   validate(requestPasswordResetSchema),
-  authController.requestPasswordReset,
+  passwordResetController.requestPasswordReset,
 );
 
 router.post(
   '/reset-password',
   validate(resetPasswordSchema),
-  authController.resetPassword,
+  passwordResetController.resetPassword,
 );
 export default router;
